@@ -29,9 +29,24 @@ def binary_string_vector_to_swedish_pump_vector(binary_string):
             swedish_pump_vector[i] = -1
     return swedish_pump_vector
 
+def initialize_population(size_of_population, vrc_length):
+    return np.random.randint(2, size=(size_of_population, vrc_length))
+
+def eval_population(population):
+    score = np.zeros(len(population))
+    for i in range(len(population)):
+        pump_vec = binary_string_vector_to_swedish_pump_vector(population[i])
+        val = swedish_pump(pump_vec)
+        score[i] = val
+    return score
+
+
 if __name__ == "__main__":
     vec = np.array([1, 1, -1, -1, 1])
     swedish_to_bin = swedish_pump_vector_to_binary_string(vec)
     bin_to_swedish = binary_string_vector_to_swedish_pump_vector(swedish_to_bin)
     print(swedish_to_bin)
     print(bin_to_swedish)
+    popo = initialize_population(20,13)
+    print(popo)
+    print(eval_population(popo))
