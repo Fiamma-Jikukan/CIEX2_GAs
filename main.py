@@ -13,21 +13,9 @@ def swedish_pump(b):
     return f_b
 
 
-def swedish_pump_vector_to_binary_string(b):
-    n = len(b)
-    binary_string = np.zeros(n)
-    for i in range(n):
-        if b[i] == 1:
-            binary_string[i] = 1
-    return binary_string
 
 def binary_string_vector_to_swedish_pump_vector(binary_string):
-    n = len(binary_string)
-    swedish_pump_vector = np.ones(n)
-    for i in range(n):
-        if binary_string[i] == 0:
-            swedish_pump_vector[i] = -1
-    return swedish_pump_vector
+    return 2 * binary_string - 1
 
 def initialize_population(size_of_population, vrc_length):
     return np.random.randint(2, size=(size_of_population, vrc_length))
@@ -87,32 +75,45 @@ def mutation(population, p_m):
             bit = population[i, j]
             if np.random.random() < p_m:
                 population[i, j] = 1 - population[i, j]
+    return population
 
 
 
 def traditional_genetic_algorithm(population_size, vector_length, max_calls_to_target_functions):
     t = 0
-    calls = 0
+    calls = population_size
     population = initialize_population(population_size, vector_length)
     evaluation = eval_population(population)
+    best_score = max(evaluation)
+    print(max(evaluation))
+    same_score_counter = 0
+    max_generations = max_calls_to_target_functions / population_size
+    patience_threshold = max_generations * 0.10
     while calls < max_calls_to_target_functions:
+        # print(population)
         choose_parents = pair_according_to_fitness(population, evaluation)
-        next_gen_population = crossover_population(choose_parents, population_size, p_c=0.5)
-        mutate = mutation(next_gen_population, p_m=0.1)
-
-
-
-
-
-
+        next_gen_population = crossover_population(choose_parents, population_size, p_c=0.8)
+        mutate = mutation(next_gen_population, p_m=1/vector_length)
+        evaluation = eval_population(mutate)
+        population = mutate
+        # print(max(evaluation))
+        same_score_counter += 1 # count the number of times the evaluation didn't give us a better score
+        if max(evaluation) > best_score:
+            best_score = max(evaluation)
+            print(best_score)
+            same_score_counter = 0
+        if same_score_counter > patience_threshold:
+            break
+        calls += population_size
+        t += 1
+    return best_score
 
 
 if __name__ == "__main__":
-    vec = np.array([1, 1, -1, -1, 1])
-    swedish_to_bin = swedish_pump_vector_to_binary_string(vec)
-    bin_to_swedish = binary_string_vector_to_swedish_pump_vector(swedish_to_bin)
-    print(swedish_to_bin)
-    print(bin_to_swedish)
-    popo = initialize_population(20,13)
-    print(popo)
-    print(eval_population(popo))
+    best_score_25 = traditional_genetic_algorithm(100, 25, 25*(10**6))
+    print("Best score for vector of length 25: ", best_score_25)
+    best_score_64 = traditional_genetic_algorithm(200, 64, 64*(10**6))
+    print("Best score for vector of length 64: ",best_score_64)
+    best_score_100 = traditional_genetic_algorithm(500, 100, 100*(10**6))
+    print("Best score for vector of length 100: ", best_score_100)
+
