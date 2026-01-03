@@ -1,5 +1,6 @@
 import numpy as np
 
+
 def swedish_pump(b):
     # b is a vector of 1s and -1s
     n = len(b)
@@ -13,7 +14,6 @@ def swedish_pump(b):
     return f_b
 
 
-
 def binary_string_vector_to_swedish_pump_vector(binary_string):
     return 2 * binary_string - 1
 
@@ -21,11 +21,15 @@ def initialize_population(size_of_population, vrc_length):
     return np.random.randint(2, size=(size_of_population, vrc_length))
 
 def eval_population(population):
+    # Optimized: We process individuals one by one but use fast conversion
     score = np.zeros(len(population))
+
+    # 1. Convert entire population matrix from {0,1} to {-1,1} at once
+    pop_pump_format = 2 * population - 1
+
     for i in range(len(population)):
-        pump_vec = binary_string_vector_to_swedish_pump_vector(population[i])
-        val = swedish_pump(pump_vec)
-        score[i] = val
+        score[i] = swedish_pump(pop_pump_format[i])
+
     return score
 
 def pair_according_to_fitness(population, scores):
@@ -36,7 +40,7 @@ def pair_according_to_fitness(population, scores):
     probability_scores = scores / score_sum
     all_indices = np.arange(population_size)
 
-    for i in range(population_size//2):
+    for i in range(population_size // 2):
         index_1 = np.random.choice(all_indices, p=probability_scores)
         index_2 = np.random.choice(all_indices, p=probability_scores)
         fitness_pairs[i, 0] = population[index_1]
@@ -68,52 +72,78 @@ def crossover_population(parents, population_size, p_c):
         next_gen_population[i * 2 + 1] = child_2
     return next_gen_population
 
-
 def mutation(population, p_m):
-    for i in range(population.shape[0]):
-        for j in range(population.shape[1]):
-            bit = population[i, j]
-            if np.random.random() < p_m:
-                population[i, j] = 1 - population[i, j]
+    # 1. Generate random matrix
+    random_matrix = np.random.random(population.shape)
+    # 2. Find flips
+    flip_mask = random_matrix < p_m
+    # 3. Apply flips using XOR (^)
+    population[flip_mask] ^= 1
     return population
 
 
-
 def traditional_genetic_algorithm(population_size, vector_length, max_calls_to_target_functions):
+    # init
     t = 0
     calls = population_size
     population = initialize_population(population_size, vector_length)
     evaluation = eval_population(population)
     best_score = max(evaluation)
-    print(max(evaluation))
+    print(f"Best score of the first generation: {best_score}")
     same_score_counter = 0
-    max_generations = max_calls_to_target_functions / population_size
-    patience_threshold = max_generations * 0.10
+
+    # start the run
     while calls < max_calls_to_target_functions:
-        # print(population)
+        # advance current generation
         choose_parents = pair_according_to_fitness(population, evaluation)
         next_gen_population = crossover_population(choose_parents, population_size, p_c=0.8)
-        mutate = mutation(next_gen_population, p_m=1/vector_length)
+        mutate = mutation(next_gen_population, (1 / vector_length))
         evaluation = eval_population(mutate)
         population = mutate
-        # print(max(evaluation))
-        same_score_counter += 1 # count the number of times the evaluation didn't give us a better score
+        # see if max generation were found
+        same_score_counter += 1
         if max(evaluation) > best_score:
             best_score = max(evaluation)
-            print(best_score)
+            print(f"In generation {t + 1}, found a better score: {best_score}")
             same_score_counter = 0
-        if same_score_counter > patience_threshold:
+        if same_score_counter > 10 ** 5:
+            print("Last generation reached:", t)
             break
+        # advance to next generation
         calls += population_size
         t += 1
+
     return best_score
 
 
 if __name__ == "__main__":
-    best_score_25 = traditional_genetic_algorithm(100, 25, 25*(10**6))
-    print("Best score for vector of length 25: ", best_score_25)
-    best_score_64 = traditional_genetic_algorithm(200, 64, 64*(10**6))
-    print("Best score for vector of length 64: ",best_score_64)
-    best_score_100 = traditional_genetic_algorithm(500, 100, 100*(10**6))
-    print("Best score for vector of length 100: ", best_score_100)
+    best_score_25 = 0
+    best_score_64 = 0
+    best_score_100 = 0
 
+    for i in range(1, 11):
+        current_best_score = 0
+        print("\n\nTry number:", i)
+        print("Calculating best score for vector of length 25:")
+        current_best_score = traditional_genetic_algorithm(200, 25, 25 * (10 ** 6))
+        print(f"Best score for vector of length 25 in try: {i} is:", current_best_score)
+        best_score_25 += current_best_score
+
+        current_best_score = 0
+        print("\nCalculating best score for vector of length 64:")
+        current_best_score = traditional_genetic_algorithm(450, 64, 64 * (10 ** 6))
+        print(f"Best score for vector of length 64 in try: {i} is", current_best_score)
+        best_score_64 += current_best_score
+
+        current_best_score = 0
+        print("\nCalculating best score for vector of length 100:")
+        current_best_score = traditional_genetic_algorithm(800, 100, 100 * (10 ** 6))
+        print(f"Best score for vector of length 100 in try: {i} is:", current_best_score)
+        best_score_100 += current_best_score
+
+    print("\n\n################################")
+    print("FINAL RESULTS")
+    print(f"Best score average (L=25): {best_score_25/10}")
+    print(f"Best score average (L=64): {best_score_64/10}")
+    print(f"Best score average (L=100): {best_score_100/10}")
+    print("################################")
