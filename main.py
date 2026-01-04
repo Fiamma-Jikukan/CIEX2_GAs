@@ -34,11 +34,23 @@ def eval_population(population):
 
     return score
 
-
-def pair_according_to_fitness(population, scores):
+def pair_according_to_fitness(population, scores, tournament=False):
     population_size = len(population)
     gene_length = population.shape[1]
-    fitness_pairs = np.zeros((population_size // 2, 2, gene_length), dtype=int)
+
+    empty_parents_arr = np.zeros_like(population)
+    selected_parents = tournament_selection(population, scores, empty_parents_arr) if tournament \
+                        else roulette_selection(population, scores, empty_parents_arr)
+
+    # reshape to list of pairs
+    pairs_number = population_size // 2
+    fitness_pairs = selected_parents.reshape(pairs_number, 2, gene_length)
+
+    return fitness_pairs
+
+def roulette_selection(population, scores, selected_parents):
+    population_size = len(population)
+
     score_sum = np.sum(scores)
     probability_scores = scores / score_sum
     all_indices = np.arange(population_size)
@@ -46,10 +58,25 @@ def pair_according_to_fitness(population, scores):
     for i in range(population_size // 2):
         index_1 = np.random.choice(all_indices, p=probability_scores)
         index_2 = np.random.choice(all_indices, p=probability_scores)
-        fitness_pairs[i, 0] = population[index_1]
-        fitness_pairs[i, 1] = population[index_2]
-    return fitness_pairs
+        selected_parents[i] = population[index_1]
+        selected_parents[i+1] = population[index_2]
 
+    return selected_parents
+
+def tournament_selection(population, scores, selected_parents):
+    population_size = len(population)
+
+    for i in range(population_size):
+        q = np.random.randint(2, 11)
+        # select q candidate's indexes for current tournament
+        candidate_indices  = np.random.randint(0, population_size, size=q)
+        candidate_scores = scores[candidate_indices]
+
+        # using argmax to get the index of the highest score among q candidates
+        winner_index = candidate_indices[np.argmax(candidate_scores)]
+        selected_parents[i] = population[winner_index]
+
+    return selected_parents
 
 def crossover_population(parents, population_size, p_c):
     """receives parents pairs and returns next gen population"""
@@ -88,7 +115,7 @@ def mutation(population, p_m):
     return population
 
 
-def traditional_genetic_algorithm(population_size, vector_length, max_calls_to_target_functions):
+def traditional_genetic_algorithm(population_size, vector_length, max_calls_to_target_functions, tournament=False):
     # init
     t = 0
     calls = population_size
@@ -101,7 +128,7 @@ def traditional_genetic_algorithm(population_size, vector_length, max_calls_to_t
     # start the run
     while calls < max_calls_to_target_functions:
         # advance current generation
-        choose_parents = pair_according_to_fitness(population, evaluation)
+        choose_parents = pair_according_to_fitness(population, evaluation, tournament)
         next_gen_population = crossover_population(choose_parents, population_size, p_c=0.8)
         mutate = mutation(next_gen_population, (1 / vector_length))
         evaluation = eval_population(mutate)
@@ -119,31 +146,66 @@ def traditional_genetic_algorithm(population_size, vector_length, max_calls_to_t
         calls += population_size
         t += 1
 
-    return best_score
+    return best_score, calls
 
 
-def calculate_best_score_of_vector_n(current_try, vector_length, population_size):
+def calculate_best_score_of_vector_n(current_try, vector_length, population_size, tournament=False):
     print(f"Calculating best score for vector of length {vector_length}:")
-    current_best_score = traditional_genetic_algorithm(population_size, vector_length, vector_length * (10 ** 6))
-    print(f"Best score for vector of length 25 in try: {current_try} is:", current_best_score)
+    current_best_score, best_score_num_of_calls = traditional_genetic_algorithm(population_size, vector_length, vector_length * (10 ** 6), tournament)
+    print("*****************")
+    print(f"Summary for try {current_try} for vector length {vector_length}:")
+    print(f"\tBest score is: {current_best_score}\n\tWith amount of calls to objective function: {best_score_num_of_calls}" )
+    print("*****************\n")
     return current_best_score
 
 
 if __name__ == "__main__":
-    best_score_25 = 0
-    best_score_64 = 0
-    best_score_100 = 0
+    # --- ROULETTE RUN ---
+    roulette_25_total = 0
+    roulette_64_total = 0
+    roulette_100_total = 0
+
+    print("############################")
+    print("USING ROULETTE")
+    print("###########################\n")
+    for i in range(1, 11):
+        print("\n\nTry number:", i)
+        roulette_25_total += calculate_best_score_of_vector_n(i, 25, 200)
+        roulette_64_total += calculate_best_score_of_vector_n(i, 64, 450)
+        roulette_100_total += calculate_best_score_of_vector_n(i, 100, 800)
+
+    # Calculate Roulette Averages
+    avg_roulette_25 = roulette_25_total / 10
+    avg_roulette_64 = roulette_64_total / 10
+    avg_roulette_100 = roulette_100_total / 10
+
+    # --- TOURNAMENT RUN ---
+    tournament_25_total = 0
+    tournament_64_total = 0
+    tournament_100_total = 0
+
+    print("\n\n############################")
+    print("USING TOURNAMENT")
+    print("###########################\n")
 
     for i in range(1, 11):
         print("\n\nTry number:", i)
+        tournament_25_total += calculate_best_score_of_vector_n(i, 25, 200, True)
+        tournament_64_total += calculate_best_score_of_vector_n(i, 64, 450, True)
+        tournament_100_total += calculate_best_score_of_vector_n(i, 100, 800, True)
 
-        best_score_25 += calculate_best_score_of_vector_n(i, 25, 200)
-        best_score_64 += calculate_best_score_of_vector_n(i, 64, 450)
-        best_score_100 += calculate_best_score_of_vector_n(i, 100, 800)
+    # Calculate Tournament Averages
+    avg_tournament_25 = tournament_25_total / 10
+    avg_tournament_64 = tournament_64_total / 10
+    avg_tournament_100 = tournament_100_total / 10
 
-    print("\n\n################################")
-    print("FINAL RESULTS")
-    print(f"Best score average (L=25): {best_score_25 / 10}")
-    print(f"Best score average (L=64): {best_score_64 / 10}")
-    print(f"Best score average (L=100): {best_score_100 / 10}")
-    print("################################")
+    # --- FINAL COMPARISON ---
+    print("\n\n############################################################")
+    print("                   FINAL RESULTS COMPARISON")
+    print("############################################################")
+    print(f"{'Vector Length':<15} | {'Roulette Avg':<20} | {'Tournament Avg':<20}")
+    print("-" * 60)
+    print(f"{'L=25':<15} | {avg_roulette_25:<20.5f} | {avg_tournament_25:<20.5f}")
+    print(f"{'L=64':<15} | {avg_roulette_64:<20.5f} | {avg_tournament_64:<20.5f}")
+    print(f"{'L=100':<15} | {avg_roulette_100:<20.5f} | {avg_tournament_100:<20.5f}")
+    print("############################################################")
