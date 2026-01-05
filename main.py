@@ -56,18 +56,20 @@ def roulette_selection(population, scores, selected_parents):
     all_indices = np.arange(population_size)
 
     for i in range(population_size // 2):
+        j = i * 2
         index_1 = np.random.choice(all_indices, p=probability_scores)
         index_2 = np.random.choice(all_indices, p=probability_scores)
-        selected_parents[i] = population[index_1]
-        selected_parents[i+1] = population[index_2]
+        selected_parents[j] = population[index_1]
+        selected_parents[j+1] = population[index_2]
 
     return selected_parents
 
 def tournament_selection(population, scores, selected_parents):
     population_size = len(population)
+    up_bounder = (population_size // 80) + 1
 
     for i in range(population_size):
-        q = np.random.randint(2, 11)
+        q = np.random.randint(2, up_bounder+1)
         # select q candidate's indexes for current tournament
         candidate_indices  = np.random.randint(0, population_size, size=q)
         candidate_scores = scores[candidate_indices]
@@ -115,28 +117,56 @@ def mutation(population, p_m):
     return population
 
 
-def traditional_genetic_algorithm(population_size, vector_length, max_calls_to_target_functions, tournament=False):
+def traditional_genetic_algorithm(population_size, vector_length, max_calls_to_target_functions, tournament=False, elitism=False):
     # init
     t = 0
     calls = population_size
-    population = initialize_population(population_size, vector_length)
-    evaluation = eval_population(population)
-    best_score = max(evaluation)
+
+    curr_generation = initialize_population(population_size, vector_length)
+    eval_curr_gen = eval_population(curr_generation)
+
+    best_score = max(eval_curr_gen)
     print(f"Best score of the first generation: {best_score}")
     same_score_counter = 0
+    prev_generation = curr_generation.copy()
 
     # start the run
     while calls < max_calls_to_target_functions:
         # advance current generation
-        choose_parents = pair_according_to_fitness(population, evaluation, tournament)
-        next_gen_population = crossover_population(choose_parents, population_size, p_c=0.8)
-        mutate = mutation(next_gen_population, (1 / vector_length))
-        evaluation = eval_population(mutate)
-        population = mutate
+        choose_parents = pair_according_to_fitness(curr_generation, eval_curr_gen, tournament)
+        population_to_mutate = crossover_population(choose_parents, population_size, p_c=0.8)
+
+        new_generation = mutation(population_to_mutate, (1 / vector_length))
+        eval_new_gen = eval_population(new_generation)
+
+        #
+        if elitism:
+            # combine parent and offspring populations and evaluations into one array for each
+            union_generations = np.concatenate([curr_generation, new_generation], axis=0)
+            union_eval = np.concatenate([eval_curr_gen, eval_new_gen])
+
+            # sort indices by fitness score in descending order, keep only population_size
+            best_idx = np.argsort(union_eval)[::-1][:population_size]
+
+            # take the curr generation and curr generation eval according to those indices
+            curr_generation = union_generations[best_idx]
+            eval_curr_gen = union_eval[best_idx]
+
+        else:
+            curr_generation = new_generation
+            eval_curr_gen = eval_new_gen
+
+        # stop condition: identical generations
+        if prev_generation is not None and np.array_equal(curr_generation, prev_generation):
+            print(f"Stopping: generation {t+1} is identical to generation {t}")
+            break
+
+        prev_generation = curr_generation.copy()
+
         # see if max generation were found
         same_score_counter += 1
-        if max(evaluation) > best_score:
-            best_score = max(evaluation)
+        if max(eval_curr_gen) > best_score:
+            best_score = max(eval_curr_gen)
             print(f"In generation {t + 1}, found a better score: {best_score}")
             same_score_counter = 0
         if same_score_counter > 10 ** 5:
@@ -149,14 +179,29 @@ def traditional_genetic_algorithm(population_size, vector_length, max_calls_to_t
     return best_score, calls
 
 
-def calculate_best_score_of_vector_n(current_try, vector_length, population_size, tournament=False):
-    print(f"Calculating best score for vector of length {vector_length}:")
-    current_best_score, best_score_num_of_calls = traditional_genetic_algorithm(population_size, vector_length, vector_length * (10 ** 6), tournament)
+def calculate_best_score_of_vector_n(current_try, vector_length, population_size, tournament=False, elitism=True):
+    method = "TOURNAMENT" if tournament else "ROULETTE"
+    elit = "ELITISM" if elitism else "NO-ELITISM"
+    budget = vector_length * (10 ** 6)
+
+    print(f"Calculating best score | Try {current_try}/10 | L={vector_length} | pop={population_size} | {method} | {elit}")
+
+    current_best_score, best_score_num_of_calls = traditional_genetic_algorithm(
+        population_size=population_size,
+        vector_length=vector_length,
+        max_calls_to_target_functions=budget,
+        tournament=tournament,
+        elitism=elitism
+    )
+
     print("*****************")
-    print(f"Summary for try {current_try} for vector length {vector_length}:")
-    print(f"\tBest score is: {current_best_score}\n\tWith amount of calls to objective function: {best_score_num_of_calls}" )
+    print(f"Summary for try {current_try} | L={vector_length} | pop={population_size} | {method} | {elit}")
+    print(f"\tBest score: {current_best_score}")
+    print(f"\tCalls used: {best_score_num_of_calls} / {budget} ({best_score_num_of_calls / budget:.2%})")
     print("*****************\n")
+
     return current_best_score
+
 
 
 if __name__ == "__main__":
