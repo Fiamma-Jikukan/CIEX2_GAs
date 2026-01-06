@@ -166,7 +166,7 @@ def calculate_best_score_of_vector_n(current_try, vector_length, population_size
     print(f"Calculating best score for vector of length {vector_length}:")
     current_best_score, best_score_num_of_calls, best_vector = traditional_genetic_algorithm(population_size,
                                                                                              vector_length,
-                                                                                             vector_length * (10 ** 3),
+                                                                                             vector_length * (10 ** 6),
                                                                                              tournament)
     print("*****************")
     print(f"Summary for try {current_try} for vector length {vector_length}:")
