@@ -227,5 +227,6 @@ if __name__ == "__main__":
     print(f"{'L=64':<15} | {avg_roulette_64:<20.5f} | {avg_tournament_64:<20.5f}")
     print(f"{'L=100':<15} | {avg_roulette_100:<20.5f} | {avg_tournament_100:<20.5f}")
     print("############################################################")
+    ""
 
 
