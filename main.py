@@ -29,10 +29,19 @@ def eval_population(population):
     # 1. Convert entire population matrix from {0,1} to {-1,1} at once
     pop_pump_format = 2 * population - 1
 
-    for i in range(len(population)):
-        score[i] = swedish_pump(pop_pump_format[i])
+    # var that saves best vector:
+    best_vector = np.zeros(len(population[0]))
+    best_score = 0
 
-    return score
+    for i in range(len(population)):
+        vector_val = swedish_pump(pop_pump_format[i])
+        score[i] = vector_val
+        if score[i] > best_score:
+            best_score = score[i]
+            best_vector = pop_pump_format[i].copy()
+
+    return score, best_vector
+
 
 def pair_according_to_fitness(population, scores, tournament=False):
     population_size = len(population)
@@ -40,13 +49,14 @@ def pair_according_to_fitness(population, scores, tournament=False):
 
     empty_parents_arr = np.zeros_like(population)
     selected_parents = tournament_selection(population, scores, empty_parents_arr) if tournament \
-                        else roulette_selection(population, scores, empty_parents_arr)
+        else roulette_selection(population, scores, empty_parents_arr)
 
     # reshape to list of pairs
     pairs_number = population_size // 2
     fitness_pairs = selected_parents.reshape(pairs_number, 2, gene_length)
 
     return fitness_pairs
+
 
 def roulette_selection(population, scores, selected_parents):
     population_size = len(population)
@@ -59,9 +69,10 @@ def roulette_selection(population, scores, selected_parents):
         index_1 = np.random.choice(all_indices, p=probability_scores)
         index_2 = np.random.choice(all_indices, p=probability_scores)
         selected_parents[i] = population[index_1]
-        selected_parents[i+1] = population[index_2]
+        selected_parents[i + 1] = population[index_2]
 
     return selected_parents
+
 
 def tournament_selection(population, scores, selected_parents):
     population_size = len(population)
@@ -69,7 +80,7 @@ def tournament_selection(population, scores, selected_parents):
     for i in range(population_size):
         q = np.random.randint(2, 11)
         # select q candidate's indexes for current tournament
-        candidate_indices  = np.random.randint(0, population_size, size=q)
+        candidate_indices = np.random.randint(0, population_size, size=q)
         candidate_scores = scores[candidate_indices]
 
         # using argmax to get the index of the highest score among q candidates
@@ -77,6 +88,7 @@ def tournament_selection(population, scores, selected_parents):
         selected_parents[i] = population[winner_index]
 
     return selected_parents
+
 
 def crossover_population(parents, population_size, p_c):
     """receives parents pairs and returns next gen population"""
@@ -120,7 +132,7 @@ def traditional_genetic_algorithm(population_size, vector_length, max_calls_to_t
     t = 0
     calls = population_size
     population = initialize_population(population_size, vector_length)
-    evaluation = eval_population(population)
+    evaluation, best_vector = eval_population(population)
     best_score = max(evaluation)
     print(f"Best score of the first generation: {best_score}")
     same_score_counter = 0
@@ -131,12 +143,13 @@ def traditional_genetic_algorithm(population_size, vector_length, max_calls_to_t
         choose_parents = pair_according_to_fitness(population, evaluation, tournament)
         next_gen_population = crossover_population(choose_parents, population_size, p_c=0.8)
         mutate = mutation(next_gen_population, (1 / vector_length))
-        evaluation = eval_population(mutate)
+        evaluation, best_vector_candidate = eval_population(mutate)
         population = mutate
         # see if max generation were found
         same_score_counter += 1
         if max(evaluation) > best_score:
             best_score = max(evaluation)
+            best_vector = best_vector_candidate.copy()
             print(f"In generation {t + 1}, found a better score: {best_score}")
             same_score_counter = 0
         if same_score_counter > 10 ** 5:
@@ -146,20 +159,25 @@ def traditional_genetic_algorithm(population_size, vector_length, max_calls_to_t
         calls += population_size
         t += 1
 
-    return best_score, calls
+    return best_score, calls, best_vector
 
 
 def calculate_best_score_of_vector_n(current_try, vector_length, population_size, tournament=False):
     print(f"Calculating best score for vector of length {vector_length}:")
-    current_best_score, best_score_num_of_calls = traditional_genetic_algorithm(population_size, vector_length, vector_length * (10 ** 6), tournament)
+    current_best_score, best_score_num_of_calls, best_vector = traditional_genetic_algorithm(population_size,
+                                                                                             vector_length,
+                                                                                             vector_length * (10 ** 3),
+                                                                                             tournament)
     print("*****************")
     print(f"Summary for try {current_try} for vector length {vector_length}:")
-    print(f"\tBest score is: {current_best_score}\n\tWith amount of calls to objective function: {best_score_num_of_calls}" )
+    print(
+        f"\tBest vector is: \n\t{best_vector}\n\tWith score: {current_best_score}\n\tWith amount of calls to objective function: {best_score_num_of_calls}")
     print("*****************\n")
     return current_best_score
 
 
 if __name__ == "__main__":
+    np.set_printoptions(linewidth=np.inf)
     # --- ROULETTE RUN ---
     roulette_25_total = 0
     roulette_64_total = 0
@@ -184,7 +202,7 @@ if __name__ == "__main__":
     tournament_64_total = 0
     tournament_100_total = 0
 
-    print("\n\n############################")
+    print("\n############################")
     print("USING TOURNAMENT")
     print("###########################\n")
 
@@ -209,3 +227,5 @@ if __name__ == "__main__":
     print(f"{'L=64':<15} | {avg_roulette_64:<20.5f} | {avg_tournament_64:<20.5f}")
     print(f"{'L=100':<15} | {avg_roulette_100:<20.5f} | {avg_tournament_100:<20.5f}")
     print("############################################################")
+
+
