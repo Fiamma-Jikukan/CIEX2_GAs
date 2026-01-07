@@ -69,6 +69,7 @@ def roulette_selection(population, scores, selected_parents):
 def tournament_selection(population, scores, selected_parents):
     population_size = len(population)
     up_bounder = (population_size // 80) + 1
+    up_bounder = 3 if up_bounder < 3 else up_bounder    # validate the range
 
     for i in range(population_size):
         q = np.random.randint(2, up_bounder+1)
