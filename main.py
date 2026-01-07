@@ -21,10 +21,9 @@ def run_one_try(current_try, vector_length, population_size):
         k = max(1, int(0.05 * population_size))
         elit = f"SOFT {elit}: {k} parents compete"
 
-    print("----------------------------------------")
-    print(f"Try {current_try}/{NUM_TRIES} | L={vector_length} | pop={population_size} | {elit}")
-    print("----------------------------------------")
-
+    print("----------------------------------------------------------------------------------------")
+    print(f"Try {current_try}/10 | Vector Length: {vector_length} | Population Size={population_size} | {elit}")
+    print("----------------------------------------------------------------------------------------\n")
     roulette_score = None
     roulette_vector = None
     tournament_score = None
@@ -33,7 +32,8 @@ def run_one_try(current_try, vector_length, population_size):
     for i in range(2):
         is_tournament = (i % 2 == 1)
         method = "TOURNAMENT" if is_tournament else "ROULETTE"
-        print(f"Try {current_try}/10 | Vector Length: {vector_length} | Population Size={population_size} | Sex Selection Method={method} | {elit}")
+        print(method)
+        print("-" * len(method))
 
         best_score, best_vector, calls_used = genetic_algorithm(
             population_size=population_size,
@@ -45,7 +45,7 @@ def run_one_try(current_try, vector_length, population_size):
         )
 
         print("*****************")
-        print(f"Summary for try {current_try} | L={vector_length} | pop={population_size} | {method} | {elit}")
+        print(f"Summary")
         print(f"\tBest vector: {best_vector}")
         print(f"\tBest score: {best_score}")
         print(f"\tCalls used: {calls_used} / {budget} ({calls_used / budget:.2%})")
